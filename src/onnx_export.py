@@ -25,6 +25,9 @@ def export_to_onnx(checkpoint_path: Path, onnx_path: Path = CHECKPOINT_DIR / "mo
         output_names=["logits"],
         dynamic_axes={"image": {0: "batch"}, "logits": {0: "batch"}},
         opset_version=opset,
+        dynamo=False,  # the dynamo=True default (torch>=2.6) needs the extra
+        # `onnxscript` dependency and a different dynamic_shapes API; the
+        # legacy TorchScript-based exporter is sufficient for this static CNN.
     )
     return onnx_path
 

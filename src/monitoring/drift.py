@@ -14,7 +14,9 @@ import numpy as np
 import torch
 from scipy.stats import kurtosis, skew
 
-from src.config import DB_PATH
+import src.monitoring.db as db  # not `from ... import DB_PATH`: keeps a single
+# source of truth for the DB location (db.DB_PATH), so patching it in tests
+# (or a future config reload) is visible to both modules.
 
 
 def compute_image_stats(x: torch.Tensor) -> dict:
@@ -53,7 +55,7 @@ def _fetch_recent(conn: sqlite3.Connection, table: str, columns: list, limit: in
 
 def drift_summary(
     baseline_input_stats: dict,
-    db_path=DB_PATH,
+    db_path=None,
     window: int = 200,
     z_threshold: float = 3.0,
 ) -> DriftReport:
@@ -61,10 +63,12 @@ def drift_summary(
 
     `baseline_input_stats` should be the mean/std of each stat (mean, std,
     skewness, kurtosis) computed once over the training set — see
-    `scripts/calibrate_monitoring.py`. A z-score beyond `z_threshold` on any
-    stat, or a rising OOD rate / falling confidence, is surfaced as a flag
-    for a human (or an alert) to investigate.
+    `compute_baseline_input_stats` below, invoked from
+    `scripts/train_pipeline.py`. A z-score beyond `z_threshold` on any stat,
+    or a rising OOD rate / falling confidence, is surfaced as a flag for a
+    human (or an alert) to investigate.
     """
+    db_path = db_path if db_path is not None else db.DB_PATH
     conn = sqlite3.connect(str(db_path))
     try:
         pred_rows = _fetch_recent(conn, "predictions", ["confidence", "is_ood"], window)

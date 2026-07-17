@@ -43,10 +43,13 @@ def collect_predictions(predict_proba_fn, loader):
 
 
 def evaluate_predictions(y_true, y_pred, class_names=CIFAR10_CLASSES):
+    # Explicit `labels` so shape/target_names stay consistent even if a class
+    # is absent from a given batch (e.g. a small test slice in unit tests).
+    labels = list(range(len(class_names)))
     report = classification_report(
-        y_true, y_pred, target_names=class_names, output_dict=True, zero_division=0
+        y_true, y_pred, labels=labels, target_names=class_names, output_dict=True, zero_division=0
     )
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
     return report, cm
 
 

@@ -49,8 +49,10 @@ CREATE INDEX IF NOT EXISTS idx_input_stats_timestamp ON input_stats(timestamp);
 
 
 @contextmanager
-def get_connection(db_path: Path = DB_PATH):
-    db_path = Path(db_path)
+def get_connection(db_path: Path | None = None):
+    # Resolved at call time (not bound as a default-argument value) so tests
+    # can monkeypatch `src.monitoring.db.DB_PATH` and have it take effect.
+    db_path = Path(db_path) if db_path is not None else DB_PATH
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path))
     try:
@@ -59,7 +61,7 @@ def get_connection(db_path: Path = DB_PATH):
         conn.close()
 
 
-def init_db(db_path: Path = DB_PATH):
+def init_db(db_path: Path | None = None):
     with get_connection(db_path) as conn:
         conn.executescript(SCHEMA)
         conn.commit()
@@ -71,7 +73,7 @@ def log_prediction(
     confidence: float,
     probs: list,
     is_ood: bool,
-    db_path: Path = DB_PATH,
+    db_path: Path | None = None,
 ):
     with get_connection(db_path) as conn:
         conn.execute(
@@ -82,7 +84,7 @@ def log_prediction(
         conn.commit()
 
 
-def log_input_stats(mean: float, std: float, skewness: float, kurtosis: float, db_path: Path = DB_PATH):
+def log_input_stats(mean: float, std: float, skewness: float, kurtosis: float, db_path: Path | None = None):
     with get_connection(db_path) as conn:
         conn.execute(
             "INSERT INTO input_stats (timestamp, mean, std, skewness, kurtosis) VALUES (?, ?, ?, ?, ?)",
