@@ -25,7 +25,7 @@ class BatchImageDoc(BaseDoc):
 class PredictionDoc(BaseDoc):
     predicted_class: str
     confidence: float
-    probs: NdArray[10]
+    probs: list[float]
     is_ood: bool
 
 

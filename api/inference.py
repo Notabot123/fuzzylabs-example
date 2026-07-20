@@ -77,6 +77,6 @@ def _to_response(probs: np.ndarray, ood_flag: bool) -> dict:
     return {
         "predicted_class": CIFAR10_CLASSES[predicted_idx],
         "confidence": float(probs[predicted_idx]),
-        "probs": probs.astype(np.float32),
+        "probs": probs.tolist(),
         "is_ood": ood_flag,
     }
