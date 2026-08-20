@@ -87,6 +87,29 @@ def test_predict_onnx_returns_503_when_no_onnx_model(client):
     assert r.status_code == 503
 
 
+def test_predict_batch_returns_one_prediction_per_image(client):
+    payload = {"images": [{"tensor": np.random.rand(3, 32, 32).tolist()} for _ in range(4)]}
+    r = client.post("/predict/batch", json=payload)
+    assert r.status_code == 200
+    predictions = r.json()["predictions"]
+    assert len(predictions) == 4
+    for body in predictions:
+        assert body["predicted_class"] in CIFAR10_CLASSES
+        assert len(body["probs"]) == 10
+        assert abs(sum(body["probs"]) - 1.0) < 1e-4
+
+
+def test_predict_batch_rejects_empty_images(client):
+    r = client.post("/predict/batch", json={"images": []})
+    assert r.status_code == 422
+
+
+def test_predict_batch_without_model_returns_503(empty_client):
+    payload = {"images": [{"tensor": np.random.rand(3, 32, 32).tolist()}]}
+    r = empty_client.post("/predict/batch", json=payload)
+    assert r.status_code == 503
+
+
 def test_predict_without_model_returns_503(empty_client):
     r = empty_client.post("/predict", json=_image_payload())
     assert r.status_code == 503
