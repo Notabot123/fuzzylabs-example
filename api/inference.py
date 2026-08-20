@@ -29,6 +29,12 @@ def _ood_flag(registry, x01: torch.Tensor) -> bool:
     return bool(is_ood(registry.ood_model, registry.ood_threshold, x01, registry.device)[0])
 
 
+def _ood_flags_batch(registry, x01: torch.Tensor) -> list:
+    if registry.ood_model is None or registry.ood_threshold is None:
+        return [False] * x01.shape[0]
+    return is_ood(registry.ood_model, registry.ood_threshold, x01, registry.device).tolist()
+
+
 def _log(model_name: str, probs: np.ndarray, ood_flag: bool, x01: torch.Tensor):
     predicted_idx = int(probs.argmax())
     log_prediction(
@@ -60,6 +66,24 @@ def predict_ensemble(registry, x01: torch.Tensor) -> dict:
     ood_flag = _ood_flag(registry, x01)
     _log("ensemble", probs, ood_flag, x01)
     return _to_response(probs, ood_flag)
+
+
+@torch.no_grad()
+def predict_batch(registry, x01: torch.Tensor) -> list:
+    """x01: (batch, 3, 32, 32) float tensor in [0, 1].
+
+    One forward pass for the whole minibatch, rather than looping predict_single
+    per image — this is the shape a real batching/queueing layer would hand the
+    model (see README's discussion of scaling the endpoint).
+    """
+    x = normalize_for_classifier(x01, registry.device)
+    probs = F.softmax(registry.best_model(x), dim=1).cpu().numpy()
+    ood_flags = _ood_flags_batch(registry, x01)
+    responses = []
+    for i in range(probs.shape[0]):
+        _log("best_model", probs[i], ood_flags[i], x01[i : i + 1])
+        responses.append(_to_response(probs[i], ood_flags[i]))
+    return responses
 
 
 @torch.no_grad()
